@@ -106,7 +106,14 @@ dash_license_checker(
 )
 
 # Add target for formatting checks
-use_format_targets()
+# See https://github.com/eclipse-score/lifecycle/issues/390
+# Add "cpp" in use_format_targets
+use_format_targets(languages = [
+    "python",
+    "rust",
+    "starlark",
+    "yaml",
+])
 
 # Rust coverage report generation target
 rust_coverage_report(
