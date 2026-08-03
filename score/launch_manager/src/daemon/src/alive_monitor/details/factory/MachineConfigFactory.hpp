@@ -15,19 +15,15 @@
 #ifndef MACHINE_CONFIG_FACTORY_HPP_INCLUDED
 #define MACHINE_CONFIG_FACTORY_HPP_INCLUDED
 
-#include <optional>
 #include "score/mw/launch_manager/alive_monitor/details/factory/StaticConfig.hpp"
 #include "score/mw/launch_manager/alive_monitor/details/timers/Timers_OsClock.hpp"
-#include "score/mw/launch_manager/watchdog/IDeviceConfigFactory.hpp"
-#ifdef USE_NEW_CONFIGURATION
-#include "score/mw/launch_manager/configuration/config.hpp"
-#else
+#include "score/mw/launch_manager/alive_monitor/details/factory/StaticConfig.hpp"
+
 namespace HMCOREFlatBuffer
 {
 /* RULECHECKER_comment(1:0,1:0, check_non_pod_struct, "External data type form generated flatbuffer code", true_no_defect) */
 struct HMCOREEcuCfg;
 }  // namespace PHMCOREFlatBuffer
-#endif
 
 namespace score
 {
@@ -42,24 +38,14 @@ namespace factory
 /// @brief Factory for loading the HM Machine Configuration
 /// @details Provides methods to retrieve the settings from the HM Machine configuration if a configuration is
 /// provided. If no configuration is provided, the default values are returned.
-class MachineConfigFactory : public watchdog::IDeviceConfigFactory
+class MachineConfigFactory
 {
 public:
-    /// @brief Holds different buffer sizes that may be configured in the HM Machine Config
-    /// @details All buffer sizes are initialized with their default value
-    struct SupervisionBufferConfig
-    {
-        /// @brief Configured buffer size for alive supervisions
-        std::uint16_t bufferSizeAliveSupervision{StaticConfig::k_DefaultAliveSupCheckpointBufferElements};
-        /// @brief Configured buffer size for Monitor entities
-        std::uint16_t bufferSizeMonitor{StaticConfig::k_DefaultMonitorBufferElements};
-    };
-
     /// @brief Constructor
     MachineConfigFactory() noexcept(true);
 
     /// @brief Destructor
-    ~MachineConfigFactory() override = default;
+    ~MachineConfigFactory() = default;
 
     /// @brief No Copy Constructor
     MachineConfigFactory(const MachineConfigFactory&) = delete;
@@ -75,14 +61,7 @@ public:
     ///         False, if an invalid machine configuration was provided.
     /// @note FlatCfg constructor does not define any exception guarantee and may throw a non specified exception
     /// @throws std::bad_alloc in case of insufficient memory
-#ifdef USE_NEW_CONFIGURATION
-    bool init(const score::mw::launch_manager::configuration::Config& config) noexcept(false);
-#else
     bool init() noexcept(false);
-#endif
-
-    /// @copydoc IDeviceConfigFactory::getDeviceConfigurations()
-    std::optional<watchdog::IDeviceConfigFactory::DeviceConfigurations> getDeviceConfigurations() const override;
 
     /// @brief Returns the configured hm daemon cycle time in nanoseconds
     /// @return Configured cycle time or default cycle time if not configured
@@ -93,28 +72,18 @@ public:
     const SupervisionBufferConfig& getSupervisionBufferConfig() const noexcept(true);
 
 private:
-#ifndef USE_NEW_CONFIGURATION
     /// @brief Loads the hm machine config
     /// @param [in] f_cfg_r The flatcfg api
     /// @throws std::bad_alloc for string allocation in case of insufficient memory
     /// @return true if no error occurred, else false
     bool loadHmCoreConfig(const HMCOREFlatBuffer::HMCOREEcuCfg* f_cfg_r) noexcept(false);
 
-    /// @brief Loads the watchdog device configuration from machine config
-    /// @param [in] f_flatBuffer_r The loaded machine config
-    void loadWatchdogDevices(const HMCOREFlatBuffer::HMCOREEcuCfg& f_flatBuffer_r) noexcept(false);
-
     /// @brief Load HM settings from the machine config. I.e. buffer sizes, periodicity, etc.
     /// @param [in] f_flatBuffer_r The flatcfg buffer
     void loadHmSettings(const HMCOREFlatBuffer::HMCOREEcuCfg& f_flatBuffer_r) noexcept(true);
-#endif
 
     /// @brief Log all configuration settings
     void logConfiguration() noexcept(true);
-
-    /// @brief Configured watchdog devices
-    /// By default, no watchdog device is configured
-    watchdog::IDeviceConfigFactory::DeviceConfigurations watchdogConfigs{};
 
     /// @brief Configured HM Daemon cycle time
     timers::NanoSecondType cycleTimeNs{StaticConfig::k_hmDaemonDefaultCycleTime};
@@ -122,11 +91,9 @@ private:
     /// @brief Configured supervision buffer sizes
     SupervisionBufferConfig supBufferCfg{};
 
-#ifndef USE_NEW_CONFIGURATION
     /// Pointer to HM Flat Buffer for given Software Cluster
     /// Raw pointer is used here because the memory is deallocated by FlatBuffer.
     const HMCOREFlatBuffer::HMCOREEcuCfg* flatBuffer_p;
-#endif
 };
 
 }  // namespace factory

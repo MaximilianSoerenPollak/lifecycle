@@ -14,11 +14,12 @@
 #ifndef SWCLUSTERHANDLER_HPP_INCLUDED
 #define SWCLUSTERHANDLER_HPP_INCLUDED
 
-#include "score/mw/launch_manager/alive_monitor/details/factory/MachineConfigFactory.hpp"
+#include "score/mw/launch_manager/alive_monitor/details/factory/StaticConfig.hpp"
 #include "score/mw/launch_manager/alive_monitor/details/ifappl/DataStructures.hpp"
 #include "score/mw/launch_manager/alive_monitor/details/ifexm/ProcessState.hpp"
 #include "score/mw/launch_manager/alive_monitor/details/ifexm/ProcessStateReader.hpp"
 #include "score/mw/launch_manager/alive_monitor/details/timers/Timers_OsClock.hpp"
+
 #ifdef USE_NEW_CONFIGURATION
 #include "score/mw/launch_manager/configuration/config.hpp"
 #endif
@@ -99,7 +100,7 @@ class SwClusterHandler
 #endif
         std::shared_ptr<score::lcm::IRecoveryClient> f_recoveryClient_r,
         ifexm::ProcessStateReader& f_processStateReader_r,
-        const factory::MachineConfigFactory::SupervisionBufferConfig& f_bufferConfig_r) noexcept(false);
+        const factory::SupervisionBufferConfig& f_bufferConfig_r) noexcept(false);
 
     /// @brief Perform cyclic execution
     /// @details Perform cyclic execution required for supervision of the Software Cluster

@@ -33,7 +33,7 @@ cc_library(
     visibility = ["//score/launch_manager/src/daemon/src/alive_monitor:__subpackages__"],
     deps = [
         "//score/launch_manager/src/daemon/src/alive_monitor/details/factory:flat_cfg_factory",
-        "//score/launch_manager/src/daemon/src/alive_monitor/details/factory:machine_config_factory",
+        "//score/launch_manager/src/daemon/src/alive_monitor/details/factory:static_config",
         "//score/launch_manager/src/daemon/src/alive_monitor/details/ifappl:checkpoint",
         "//score/launch_manager/src/daemon/src/alive_monitor/details/ifappl:data_structures",
         "//score/launch_manager/src/daemon/src/alive_monitor/details/ifappl:monitor_if_daemon",
@@ -66,7 +66,7 @@ cc_library(
         ":sw_cluster_handler",
         "//score/launch_manager/src/control_client",
         "//score/launch_manager/src/daemon/src/alive_monitor/details/factory:flat_cfg_factory",
-        "//score/launch_manager/src/daemon/src/alive_monitor/details/factory:machine_config_factory",
+        "//score/launch_manager/src/daemon/src/alive_monitor/details/factory:static_config",
         "//score/launch_manager/src/daemon/src/alive_monitor/details/ifappl:monitor_if_daemon",
         "//score/launch_manager/src/daemon/src/alive_monitor/details/ifexm:process_state_reader",
         "//score/launch_manager/src/daemon/src/alive_monitor/details/supervision:alive",
@@ -74,13 +74,14 @@ cc_library(
         "//score/launch_manager/src/daemon/src/alive_monitor/details/timers:cycle_timer",
         "//score/launch_manager/src/daemon/src/alive_monitor/details/timers:timers_os_clock",
         "//score/launch_manager/src/daemon/src/common:log",
-        "//score/launch_manager/src/daemon/src/watchdog:i_watchdog_if",
         "//score/launch_manager/src/lifecycle_client",
     ] + select({
         "//config:lm_use_new_configuration": [
             "//score/launch_manager/src/daemon/src/configuration:config",
         ],
-        "//conditions:default": [],
+        "//conditions:default": [
+            "//score/launch_manager/src/daemon/src/alive_monitor/details/factory:machine_config_factory",
+        ],
     }),
 )
 
@@ -106,7 +107,6 @@ cc_library(
     visibility = ["//score/launch_manager/src/daemon:__subpackages__"],
     deps = [
         ":i_health_monitor",
-        "//score/launch_manager/src/daemon/src/watchdog/details:watchdog_impl",
         "@score_baselibs//score/language/futurecpp",
     ],
 )

@@ -18,7 +18,6 @@
 
 #include "score/mw/launch_manager/alive_monitor/details/ifappl/DataStructures.hpp"
 #include "score/mw/launch_manager/alive_monitor/details/timers/Timers_OsClock.hpp"
-#include "score/mw/launch_manager/watchdog/IDeviceConfigFactory.hpp"
 
 namespace score
 {
@@ -28,6 +27,14 @@ namespace saf
 {
 namespace factory
 {
+
+struct SupervisionBufferConfig
+{
+    /// @brief Configured buffer size for alive supervisions
+    std::uint16_t bufferSizeAliveSupervision{};
+    /// @brief Configured buffer size for Monitor entities
+    std::uint16_t bufferSizeMonitor{};
+};
 
 /// @brief Static configurations
 /// @details Configuration parameters which are currently not extracted from the configuration
@@ -45,8 +52,16 @@ public:
 
     /// @brief By default hm daemon shutdown is disabled
     static constexpr bool k_hmDaemonDefaultShutdownEnabled{false};
+
+#ifndef USE_NEW_CONFIGURATION
     /// @brief By default, 10ms cycle time is used
     static constexpr timers::NanoSecondType k_hmDaemonDefaultCycleTime{10000000U};
+#else
+    // The new configuration will have the defaults already setup when loading the configuration
+#endif
+
+    /// @brief Defaults for supervision buffer sizes
+    static constexpr SupervisionBufferConfig kDefaultSupervisionBufferConfig{StaticConfig::k_DefaultAliveSupCheckpointBufferElements, StaticConfig::k_DefaultMonitorBufferElements};
 };
 
 }  // namespace factory
