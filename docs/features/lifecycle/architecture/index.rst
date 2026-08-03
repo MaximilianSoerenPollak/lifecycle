@@ -16,11 +16,12 @@ Feature Architecture
 ====================
 
 .. document:: Lifecycle Architecture
-   :id: doc__lifecycle_architecture
+   :id: doc__lifecycle_architecture_feature
    :status: draft
+   :version: 1
    :safety: ASIL_B
    :security: NO
-   :realizes: wp__feature_arch
+   :realizes: wp__feature_arch[version==1]
 
 Overview
 --------
