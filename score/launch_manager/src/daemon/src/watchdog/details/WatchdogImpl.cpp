@@ -13,15 +13,10 @@
 #include "score/mw/launch_manager/watchdog/details/WatchdogImpl.hpp"
 #include "score/launch_manager/src/daemon/src/common/log.hpp"
 
-#include <fcntl.h>
 #include <score/assert.hpp>
-#include <sys/ioctl.h>
-#include <sys/types.h>
-#include <unistd.h>
 
 #include "score/mw/launch_manager/alive_monitor/details/timers/OsClockInterface.hpp"
 #include "score/mw/launch_manager/configuration/config.hpp"
-#include "score/mw/launch_manager/watchdog/details/DeviceIf.hpp"
 #include "score/mw/launch_manager/watchdog/details/Watchdog.hpp"
 
 namespace score
@@ -54,7 +49,10 @@ T secToMs(const T f_timeout)
 /* RULECHECKER_comment(0:0,3:0, check_expensive_to_copy_in_parameter, "Move only types cannot be passed by const
  * ref",true_no_defect) */
 /* RULECHECKER_comment(0:0,9:0, check_min_instructions, "Constructor with empty body is valid", true_no_defect) */
-WatchdogImpl::WatchdogImpl() noexcept : IWatchdogIf(), watchdogDevices(), state(ELibState::idle) {}
+WatchdogImpl::WatchdogImpl(score::os::Ioctl& ioctl, score::os::Fcntl& fcntl, score::os::Unistd& unistd) noexcept
+    : IWatchdogIf(), watchdogDevices_(), state_(ELibState::idle), ioctl_(ioctl), fcntl_(fcntl), unistd_(unistd)
+{
+}
 
 bool WatchdogImpl::init(const score::mw::launch_manager::configuration::WatchdogConfig& watchdog_config,
                         std::int64_t cycle_time_ns) noexcept
@@ -87,7 +85,7 @@ bool WatchdogImpl::init(const score::mw::launch_manager::configuration::Watchdog
     catch (const std::exception& e)
     {
         isSuccess = false;
-        watchdogDevices.clear();
+        watchdogDevices_.clear();
         LM_LOG_ERROR() << "Watchdog: Watchdog initialization failed:" << std::string(e.what());
     }
     return isSuccess;
@@ -95,7 +93,7 @@ bool WatchdogImpl::init(const score::mw::launch_manager::configuration::Watchdog
 
 bool WatchdogImpl::configureDevice(const DeviceConfig& f_config_r, std::int64_t f_cycleTimeInNs) noexcept(false)
 {
-    if (state != ELibState::idle)
+    if (state_ != ELibState::idle)
     {
         return false;
     }
@@ -107,24 +105,24 @@ bool WatchdogImpl::configureDevice(const DeviceConfig& f_config_r, std::int64_t 
 
     WatchdogDevice watchdogdevice{f_config_r};
     // Space was reserved during init(), will not throw
-    watchdogDevices.push_back(watchdogdevice);
+    watchdogDevices_.push_back(watchdogdevice);
     return true;
 }
 
 bool WatchdogImpl::enable() noexcept
 {
-    if (state != ELibState::idle)
+    if (state_ != ELibState::idle)
     {
         return false;
     }
 
     bool result{true};
-    for (auto& watchdogDevice : watchdogDevices)
+    for (auto& watchdogDevice : watchdogDevices_)
     {
         const auto wasEnabled{enableDevice(watchdogDevice)};
         if (wasEnabled)
         {
-            state = ELibState::activated;
+            state_ = ELibState::activated;
         }
         result = result && wasEnabled;
     }
@@ -133,30 +131,30 @@ bool WatchdogImpl::enable() noexcept
 
 void WatchdogImpl::disable() noexcept
 {
-    if (state != ELibState::activated)
+    if (state_ != ELibState::activated)
     {
         return;
     }
     bool allDisabled{true};
-    for (auto& watchdogDevice : watchdogDevices)
+    for (auto& watchdogDevice : watchdogDevices_)
     {
         const bool wasDisabled{disableDevice(watchdogDevice)};
         allDisabled = allDisabled && wasDisabled;
     }
     if (allDisabled)
     {
-        state = ELibState::idle;
+        state_ = ELibState::idle;
     }
 }
 
 void WatchdogImpl::serviceWatchdog() noexcept
 {
-    if (state != ELibState::activated)
+    if (state_ != ELibState::activated)
     {
         return;
     }
 
-    for (auto& watchdogDevice : watchdogDevices)
+    for (auto& watchdogDevice : watchdogDevices_)
     {
         if (watchdogDevice.fileDescriptor >= 0)
         {
@@ -169,21 +167,20 @@ void WatchdogImpl::serviceWatchdog() noexcept
              * true_no_defect) */
             /* RULECHECKER_comment(1:0,2:0, check_underlying_signedness_conversion, "Linux-only constant from external
              * interface", true_no_defect) */
-            (void)DeviceIf::ioctl(
-                watchdogDevice.fileDescriptor, static_cast<DeviceIf::IoctlRequestType>(WDIOC_KEEPALIVE), nullptr);
+            static_cast<void>(ioctl_.ioctl(watchdogDevice.fileDescriptor, static_cast<std::int32_t>(WDIOC_KEEPALIVE), nullptr));
         }
     }
 }
 
 void WatchdogImpl::fireWatchdogReaction() noexcept
 {
-    if (state != ELibState::activated)
+    if (state_ != ELibState::activated)
     {
         return;
     }
 
-    state = ELibState::react;
-    for (auto& watchdogDevice : watchdogDevices)
+    state_ = ELibState::react;
+    for (auto& watchdogDevice : watchdogDevices_)
     {
         if (watchdogDevice.fileDescriptor >= 0)
         {
@@ -192,14 +189,14 @@ void WatchdogImpl::fireWatchdogReaction() noexcept
 
             std::uint16_t timeout{0U};
             // Save to ignore return value here. If setting timeout does not work, watchdog will eventually fire
-            (void)setTimeout(watchdogDevice.fileDescriptor, timeout);
+            static_cast<void>(setTimeout(watchdogDevice.fileDescriptor, timeout));
         }
     }
 
     waitForever();
 }
 
-bool WatchdogImpl::setEnableCardOption(std::int32_t f_fd) noexcept
+bool WatchdogImpl::setEnableCardOption(std::int32_t f_fd) const noexcept
 {
     std::int32_t options{WDIOS_ENABLECARD};
     /* RULECHECKER_comment(1:0,4:0, check_bitop_recast, "Linux-only constant from external interface", true_no_defect)
@@ -209,11 +206,10 @@ bool WatchdogImpl::setEnableCardOption(std::int32_t f_fd) noexcept
      * true_no_defect) */
     /* RULECHECKER_comment(1:0,1:0, check_underlying_signedness_conversion, "Linux-only constant from external
      * interface", true_no_defect) */
-    std::int32_t result{DeviceIf::ioctl(f_fd, static_cast<DeviceIf::IoctlRequestType>(WDIOC_SETOPTIONS), &options)};
-    return (result >= 0);
+    return ioctl_.ioctl(f_fd, static_cast<std::int32_t>(WDIOC_SETOPTIONS), &options).has_value();
 }
 
-std::int32_t WatchdogImpl::getConfiguredTimeout(std::int32_t& f_configuredTimeout_r, std::int32_t f_fd) noexcept
+std::int32_t WatchdogImpl::getConfiguredTimeout(std::int32_t& f_configuredTimeout_r, std::int32_t f_fd) const noexcept
 {
     f_configuredTimeout_r = -1;
 
@@ -224,9 +220,7 @@ std::int32_t WatchdogImpl::getConfiguredTimeout(std::int32_t& f_configuredTimeou
      * true_no_defect) */
     /* RULECHECKER_comment(1:0,2:0, check_underlying_signedness_conversion, "Linux-only constant from external
      * interface", true_no_defect) */
-    std::int32_t result{
-        DeviceIf::ioctl(f_fd, static_cast<DeviceIf::IoctlRequestType>(WDIOC_GETTIMEOUT), &f_configuredTimeout_r)};
-    if (result < 0)
+    if (!ioctl_.ioctl(f_fd, static_cast<std::int32_t>(WDIOC_GETTIMEOUT), &f_configuredTimeout_r).has_value())
     {
         return -1;
     }
@@ -238,7 +232,7 @@ std::int32_t WatchdogImpl::getConfiguredTimeout(std::int32_t& f_configuredTimeou
     return 0;
 }
 
-std::int32_t WatchdogImpl::getRemainingTime(std::int32_t& f_remainingTime_r, std::int32_t f_fd) noexcept
+std::int32_t WatchdogImpl::getRemainingTime(std::int32_t& f_remainingTime_r, std::int32_t f_fd) const noexcept
 {
     f_remainingTime_r = -1;
     /* RULECHECKER_comment(1:0,5:0, check_bitop_recast, "Linux-only constant from external interface", true_no_defect)
@@ -248,9 +242,7 @@ std::int32_t WatchdogImpl::getRemainingTime(std::int32_t& f_remainingTime_r, std
      * true_no_defect) */
     /* RULECHECKER_comment(1:0,2:0, check_underlying_signedness_conversion, "Linux-only constant from external
      * interface", true_no_defect) */
-    std::int32_t result{
-        DeviceIf::ioctl(f_fd, static_cast<DeviceIf::IoctlRequestType>(WDIOC_GETTIMELEFT), &f_remainingTime_r)};
-    if (result < 0)
+    if (!ioctl_.ioctl(f_fd, static_cast<std::int32_t>(WDIOC_GETTIMELEFT), &f_remainingTime_r).has_value())
     {
         return -1;
     }
@@ -273,22 +265,22 @@ bool WatchdogImpl::setTimeout(std::int32_t f_fd, std::uint16_t f_timeoutInMs) co
      * true_no_defect) */
     /* RULECHECKER_comment(1:0,1:0, check_underlying_signedness_conversion, "Linux-only constant from external
      * interface", true_no_defect) */
-    std::int32_t result{DeviceIf::ioctl(f_fd, static_cast<DeviceIf::IoctlRequestType>(WDIOC_SETTIMEOUT), &timeout)};
+    const bool ioctlSuccessful{ioctl_.ioctl(f_fd, static_cast<std::int32_t>(WDIOC_SETTIMEOUT), &timeout).has_value()};
     timeout = secToMs(timeout);
     timeoutBefore = secToMs(timeoutBefore);
 #else
     // cast is save since int32 is bigger than uint16
     std::int32_t timeout{static_cast<std::int32_t>(f_timeoutInMs)};
     std::int32_t timeoutBefore{timeout};
-    std::int32_t result{DeviceIf::ioctl(f_fd, WDIOC_SETTIMEOUT, &timeout)};
+    const bool ioctlSuccessful{ioctl_.ioctl(f_fd, WDIOC_SETTIMEOUT, &timeout).has_value()};
 #endif
     // The timeout value may have been altered to the nearest timeout that is supported,
     // if the given timeout is not supported.
-    const bool isSuccessful{(result >= 0) && (timeoutBefore == timeout)};
+    const bool isSuccessful{ioctlSuccessful && (timeoutBefore == timeout)};
     if (!isSuccessful)
     {
         LM_LOG_DEBUG() << "Watchdog: Setting watchdog timeout value failed. Wanted timeout:" << timeoutBefore
-                       << "ms, returned timeout:" << timeout << "ms, ioctl result:" << result;
+                       << "ms, returned timeout:" << timeout << "ms, ioctl successful:" << ioctlSuccessful;
     }
     return isSuccessful;
 }
@@ -296,7 +288,8 @@ bool WatchdogImpl::setTimeout(std::int32_t f_fd, std::uint16_t f_timeoutInMs) co
 bool WatchdogImpl::enableDevice(WatchdogDevice& f_state_r) const noexcept
 {
     SCORE_LANGUAGE_FUTURECPP_ASSERT_PRD(f_state_r.fileDescriptor == -1);  // this should always be true
-    f_state_r.fileDescriptor = DeviceIf::open(f_state_r.config.fileName.c_str(), O_WRONLY);
+    const auto openResult{fcntl_.open(f_state_r.config.fileName.c_str(), score::os::Fcntl::Open::kWriteOnly)};
+    f_state_r.fileDescriptor = openResult.has_value() ? openResult.value() : -1;
     bool isSuccess{true};
 
     if (f_state_r.fileDescriptor >= 0)
@@ -383,7 +376,7 @@ bool WatchdogImpl::updateTimeout(WatchdogDevice& f_state_r, std::int32_t f_confi
     return isSuccess;
 }
 
-bool WatchdogImpl::disableDevice(WatchdogDevice& f_watchdogDevice_r) noexcept
+bool WatchdogImpl::disableDevice(WatchdogDevice& f_watchdogDevice_r) const noexcept
 {
     if ((f_watchdogDevice_r.fileDescriptor < 0) || (!f_watchdogDevice_r.config.canBeDeactivated))
     {
@@ -392,7 +385,7 @@ bool WatchdogImpl::disableDevice(WatchdogDevice& f_watchdogDevice_r) noexcept
 
     if (f_watchdogDevice_r.config.needsMagicClose)
     {
-        (void)DeviceIf::write(f_watchdogDevice_r.fileDescriptor, kMagicCloseChar, static_cast<size_t>(2));
+        static_cast<void>(unistd_.write(f_watchdogDevice_r.fileDescriptor, kMagicCloseChar, static_cast<size_t>(2)));
     }
     std::int32_t option{WDIOS_DISABLECARD};
     /* RULECHECKER_comment(1:0,5:0, check_bitop_recast, "Linux-only constant from external interface", true_no_defect)
@@ -402,9 +395,8 @@ bool WatchdogImpl::disableDevice(WatchdogDevice& f_watchdogDevice_r) noexcept
      * true_no_defect) */
     /* RULECHECKER_comment(1:0,2:0, check_underlying_signedness_conversion, "Linux-only constant from external
      * interface", true_no_defect) */
-    (void)DeviceIf::ioctl(
-        f_watchdogDevice_r.fileDescriptor, static_cast<DeviceIf::IoctlRequestType>(WDIOC_SETOPTIONS), &option);
-    (void)DeviceIf::close(f_watchdogDevice_r.fileDescriptor);
+    static_cast<void>(ioctl_.ioctl(f_watchdogDevice_r.fileDescriptor, static_cast<std::int32_t>(WDIOC_SETOPTIONS), &option));
+    static_cast<void>(unistd_.close(f_watchdogDevice_r.fileDescriptor));
     f_watchdogDevice_r.fileDescriptor = -1;
     return true;
 }
@@ -420,7 +412,7 @@ bool WatchdogImpl::hasValidTimeout(const DeviceConfig& f_config_r) noexcept
 
 bool WatchdogImpl::deviceAlreadyConfigured(const DeviceConfig& f_config_r) const noexcept
 {
-    for (const auto& device : watchdogDevices)
+    for (const auto& device : watchdogDevices_)
     {
         if (device.config.fileName == f_config_r.fileName)
         {
@@ -476,7 +468,7 @@ void WatchdogImpl::waitForever() const noexcept
     sleeptime.tv_nsec = 0;
     while (true)
     {
-        (void)clock.clockNanosleep(0, &sleeptime, NULL);
+        static_cast<void>(clock.clockNanosleep(0, &sleeptime, NULL));
     }
 }
 #if defined(__CTC__) && defined(__CODE_COVERAGE_ANNOTATION__)
