@@ -10,21 +10,22 @@
  *
  * SPDX-License-Identifier: Apache-2.0
  ********************************************************************************/
-#ifndef MOCK_TERMINATION_CALLBACK_HPP_INCLUDED
-#define MOCK_TERMINATION_CALLBACK_HPP_INCLUDED
+#ifndef MOCK_COMPONENT_CONTROLLER_HPP_INCLUDED
+#define MOCK_COMPONENT_CONTROLLER_HPP_INCLUDED
 
 #include "score/mw/launch_manager/process_group_manager/details/safe_process_map.hpp"
 #include <gmock/gmock.h>
 
-namespace score::lcm::internal
+namespace score::mw::lifecycle::internal
 {
 
-class MockTerminationCallback : public ITerminationCallback
+class MockComponentController : public IComponentController
 {
   public:
-    MOCK_METHOD(void, terminated, (int32_t process_status), (override));
+    MOCK_METHOD(void, doWork, (ComponentTask && task), (override));
+    MOCK_METHOD(void, terminated, (IComponent & component, int32_t status), (override));
 };
 
-}  // namespace score::lcm::internal
+}  // namespace score::mw::lifecycle::internal
 
-#endif  // MOCK_TERMINATION_CALLBACK_HPP_INCLUDED
+#endif  // MOCK_COMPONENT_CONTROLLER_HPP_INCLUDED

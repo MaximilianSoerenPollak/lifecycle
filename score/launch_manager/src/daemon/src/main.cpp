@@ -162,7 +162,6 @@ int main([[maybe_unused]] int argc, [[maybe_unused]] const char* argv[])
     // osal::IpcCommsSync::control_client_handler_nudge_fd (fd4) for communication tpyes: kNoComms !fd3 & !fd4
     // kReporting  fd3 & !fd4
     // kControlClient  fd3 & fd4
-    // kLaunchManager  does not matter
     // the file descriptors are closed inside the handleComms function.
     reserveFD(osal::IpcCommsSync::sync_fd);
     reserveFD(osal::IpcCommsSync::control_client_handler_nudge_fd);
@@ -182,7 +181,7 @@ int main([[maybe_unused]] int argc, [[maybe_unused]] const char* argv[])
         score::mw::launch_manager::configuration::FlatbufferConfigLoader config_loader;
         auto config_result = config_loader.load(config_path);
         if (!config_result.has_value()) {
-            LM_LOG_FATAL() << "Failed to load config from: " << config_path;
+            LM_LOG_FATAL() << "Failed to load config from: " << std::string_view(config_path);
             return EXIT_FAILURE;
         }
 #endif

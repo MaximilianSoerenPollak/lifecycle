@@ -74,9 +74,9 @@ cc_library(
 )
 
 cc_library(
-    name = "mock_termination_callback",
+    name = "mock_component_controller",
     testonly = True,
-    hdrs = ["mock_termination_callback.hpp"],
+    hdrs = ["mock_component_controller.hpp"],
     include_prefix = "score/mw/launch_manager/process_group_manager/details",
     strip_include_prefix = "/score/launch_manager/src/daemon/src/process_group_manager/details",
     visibility = ["//score:__subpackages__"],
@@ -125,7 +125,7 @@ cc_library(
     ],
 )
 
-lm_cc_test(
+cc_test(
     name = "component_event_queue_UT",
     srcs = ["component_event_queue_UT.cpp"],
     deps = [
@@ -136,6 +136,7 @@ lm_cc_test(
 
 cc_library(
     name = "process_info_node",
+    srcs = ["process_info_node.cpp"],
     hdrs = ["process_info_node.hpp"],
     defines = select({
         "//config:lm_use_new_configuration": ["USE_NEW_CONFIGURATION"],
@@ -152,6 +153,7 @@ cc_library(
         "//score/launch_manager/src/daemon/src/osal:semaphore",
         "//score/launch_manager/src/daemon/src/process_group_manager:iprocess",
         "//score/launch_manager/src/daemon/src/process_state_client",
+        "@score_baselibs//score/language/futurecpp",
     ] + select({
         "//config:lm_use_new_configuration": [
             "//score/launch_manager/src/daemon/src/configuration:configuration_adapter",
@@ -160,6 +162,17 @@ cc_library(
             "//score/launch_manager/src/daemon/src/configuration:configuration_manager",
         ],
     }),
+)
+
+cc_test(
+    name = "process_info_node_UT",
+    srcs = ["process_info_node_UT.cpp"],
+    deps = [
+        ":process_info_node",
+        ":safe_process_map",
+        "//score/launch_manager/src/daemon/src/process_group_manager:mock_iprocess",
+        "@googletest//:gtest_main",
+    ],
 )
 
 cc_library(
@@ -181,14 +194,63 @@ cc_library(
     visibility = ["//score/launch_manager/src/daemon/src/process_group_manager:__pkg__"],
     deps = [
         ":component_event_queue",
+        ":component_of",
         ":component_task",
+        ":dependency_graph",
+        ":itransition_result_publisher",
         ":process_info_node",
         ":run_target",
         ":safe_process_map",
+        ":transition",
         "//score/launch_manager/src/daemon/src/common:identifier_hash",
+        "//score/launch_manager/src/daemon/src/common/concurrency:mpmc_concurrent_queue",
+        "//score/launch_manager/src/daemon/src/configuration:configuration_manager",
         "//score/launch_manager/src/daemon/src/control:control_client_channel",
         "//score/launch_manager/src/daemon/src/osal:semaphore",
         "//score/launch_manager/src/daemon/src/process_group_manager:iprocess",
+    ],
+)
+
+cc_test(
+    name = "graph_UT",
+    srcs = ["graph_UT.cpp"],
+    target_compatible_with = select({
+        "//config:lm_use_new_configuration": [],
+        "//conditions:default": ["@platforms//:incompatible"],
+    }),
+    deps = [
+        ":graph",
+        ":process_group_manager_impl",
+        "//score/launch_manager/src/daemon/src/configuration:configuration_adapter",
+        "//score/launch_manager/src/daemon/src/process_group_manager:mock_iprocess",
+        "@googletest//:gtest_main",
+    ],
+)
+
+cc_library(
+    name = "transition",
+    hdrs = ["transition.hpp"],
+    include_prefix = "score/mw/launch_manager/process_group_manager/details",
+    strip_include_prefix = "/score/launch_manager/src/daemon/src/process_group_manager/details",
+    visibility = ["//score/launch_manager/src/daemon/src/process_group_manager:__pkg__"],
+    deps = [
+        ":dependency_graph",
+        "//score/launch_manager/src/daemon/src/common:constants",
+        "//score/launch_manager/src/daemon/src/common/concurrency:fixed_size_queue",
+        "@score_baselibs//score/language/futurecpp",
+    ],
+)
+
+cc_library(
+    name = "component_of",
+    hdrs = ["component_of.hpp"],
+    include_prefix = "score/mw/launch_manager/process_group_manager/details",
+    strip_include_prefix = "/score/launch_manager/src/daemon/src/process_group_manager/details",
+    visibility = ["//score/launch_manager/src/daemon/src/process_group_manager:__pkg__"],
+    deps = [
+        ":icomponent",
+        ":process_info_node",
+        ":run_target",
     ],
 )
 
@@ -210,7 +272,7 @@ lm_cc_test(
     timeout = "long",
     srcs = ["safeprocessmap_UT.cpp"],
     deps = [
-        ":mock_termination_callback",
+        ":mock_component_controller",
         ":safe_process_map",
         "@googletest//:gtest_main",
     ],
@@ -264,7 +326,8 @@ lm_cc_test(
     name = "oshandler_UT",
     srcs = ["oshandler_UT.cpp"],
     deps = [
-        ":mock_termination_callback",
+        ":mock_component",
+        ":mock_component_controller",
         ":os_handler",
         ":safe_process_map",
         "@googletest//:gtest_main",
@@ -275,6 +338,9 @@ lm_cc_test(
 cc_library(
     name = "process_launcher",
     srcs = ["process_launcher.cpp"],
+    hdrs = ["process_launcher.hpp"],
+    include_prefix = "score/mw/launch_manager/process_group_manager/details",
+    strip_include_prefix = "/score/launch_manager/src/daemon/src/process_group_manager/details",
     visibility = ["//score/launch_manager/src/daemon/src/process_group_manager:__pkg__"],
     deps = [
         "//score/launch_manager/src/daemon/src/common:log",
@@ -286,6 +352,40 @@ cc_library(
         "//score/launch_manager/src/daemon/src/osal:set_groups",
         "//score/launch_manager/src/daemon/src/osal:sys_exit",
         "//score/launch_manager/src/daemon/src/process_group_manager:iprocess",
+    ],
+)
+
+cc_library(
+    name = "dependency_graph",
+    hdrs = [
+        "dependency_graph.hpp",
+    ],
+    include_prefix = "score/mw/launch_manager/process_group_manager/details",
+    strip_include_prefix = "/score/launch_manager/src/daemon/src/process_group_manager/details",
+    visibility = ["//score/launch_manager/src/daemon/src/process_group_manager:__pkg__"],
+    deps = [
+        "//score/launch_manager/src/daemon/src/common/concurrency:fixed_size_queue",
+    ],
+)
+
+cc_test(
+    name = "dependency_graph_UT",
+    srcs = ["dependency_graph_UT.cpp"],
+    deps = [
+        ":dependency_graph",
+        "//score/launch_manager/src/daemon/src/common:identifier_hash",
+        "@googletest//:gtest_main",
+    ],
+)
+
+cc_test(
+    name = "transition_UT",
+    srcs = ["transition_UT.cpp"],
+    deps = [
+        ":dependency_graph",
+        ":icomponent",
+        ":transition",
+        "@googletest//:gtest_main",
     ],
 )
 
@@ -329,4 +429,15 @@ cc_library(
             "//score/launch_manager/src/daemon/src/configuration:configuration_manager",
         ],
     }),
+)
+
+cc_library(
+    name = "itransition_result_publisher",
+    hdrs = ["itransition_result_publisher.hpp"],
+    include_prefix = "score/mw/launch_manager/process_group_manager/details",
+    strip_include_prefix = "/score/launch_manager/src/daemon/src/process_group_manager/details",
+    visibility = ["//score/launch_manager/src/daemon/src/process_group_manager:__pkg__"],
+    deps = [
+        "//score/launch_manager/src/daemon/src/control:control_client_channel",
+    ],
 )

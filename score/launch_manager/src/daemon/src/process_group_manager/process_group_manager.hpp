@@ -29,9 +29,15 @@
 #include "score/mw/launch_manager/common/concurrency/mpmc_concurrent_queue.hpp"
 #include "score/mw/launch_manager/common/concurrency/workerthread.hpp"
 #include "score/mw/launch_manager/common/constants.hpp"
+#include "score/mw/launch_manager/common/identifier_hash.hpp"
+#include "score/mw/launch_manager/control/control_client_channel.hpp"
+#include "score/mw/launch_manager/process_group_manager/details/component_event_queue.hpp"
 #include "score/mw/launch_manager/process_group_manager/details/graph.hpp"
+#include "score/mw/launch_manager/process_group_manager/details/itransition_result_publisher.hpp"
 #include "score/mw/launch_manager/process_group_manager/details/os_handler.hpp"
 #include "score/mw/launch_manager/process_group_manager/details/process_info_node.hpp"
+#include "score/mw/launch_manager/process_group_manager/details/process_launcher.hpp"
+#include "score/mw/launch_manager/process_group_manager/details/process_monitor.hpp"
 #include "score/mw/launch_manager/process_group_manager/details/safe_process_map.hpp"
 #include "score/mw/launch_manager/process_group_manager/ialive_monitor_thread.hpp"
 #include "score/mw/launch_manager/process_group_manager/iprocess.hpp"
@@ -62,10 +68,10 @@ using ConfigurationType = ConfigurationManager;
 ///     configured by integrator. Interaction with OSAL to start and stop processes. Interaction with OSAL to discover
 ///     when processes terminated in an unexpected way. Fulfilling PG State transitions requests from SM, as well as
 ///     informing SM about unexpected problems (for example process crashes).
-class ProcessGroupManager final
+class ProcessGroupManager final : public ITransitionResultPublisher
 {
     using WorkerQueue =
-        MPMCConcurrentQueue<std::shared_ptr<ProcessInfoNode>, static_cast<std::size_t>(ProcessLimits::kMaxProcesses)>;
+        MPMCConcurrentQueue<std::optional<ComponentTask>, static_cast<std::size_t>(ProcessLimits::kMaxProcesses)>;
 
   public:
     /// @brief Constructs a new ProcessGroupManager object.
@@ -125,11 +131,11 @@ class ProcessGroupManager final
     /// @param pg_index The index of the process group in the list of groups managed by this manager
     /// @param process_index The index of the process in the list of processes in the process group
     /// @return nullptr if the node does not exist, otherwise a pointer to the corresponding node.
-    std::shared_ptr<ProcessInfoNode> getProcessInfoNode(uint32_t pg_index, uint32_t process_index);
+    ProcessInfoNode* getProcessInfoNode(uint32_t pg_index, uint32_t process_index);
 
     /// @brief set the initial machine group state change result, called by graph when the transition completes
     /// @param result the result to save; it can only be saved once
-    void setInitialStateTransitionResult(ControlClientCode result);
+    void setInitialStateTransitionResult(ControlClientCode result) override;
 
     /// @brief Send a response message to a Control Client
     /// @param msg the message to send, containing the Control Client id as the address to send it
@@ -168,9 +174,6 @@ class ProcessGroupManager final
     /// @brief Cancels processGroupManager main routine as though SIGTERM had been sent
     void cancel();
 
-    /// @brief Set the internal pointer for the Launch Manager ProcessInfoNode
-    void setLaunchManagerConfiguration(const OsProcess* launch_manager_config);
-
   private:
     /// @brief Perform the function of Control Client handler
     /// @details (a) check for requests from any state manager processes in this process group\n
@@ -201,8 +204,16 @@ class ProcessGroupManager final
     /// @param pg Reference of the process group (Graph) to check for pending responses
     void controlClientResponses(Graph& pg);
 
-    /// @brief Handle recovery actions requested by the Alive Monitor
-    void recoveryActionHandler();
+    /// @brief Handle a single recovery request emitted by Alive supervision.
+    void handleRecoveryRequest(const IdentifierHash& process_identifier);
+
+    /// @brief Drains every ComponentEvent currently queued to the (single) graph managed by this
+    /// ProcessGroupManager.
+    /// @details Single-graph assumption: PGM creates one ProcessMonitor bound to the first (only)
+    /// graph. SupervisionFailure is routed by process identifier through handleRecoveryRequest(),
+    /// while all other events are forwarded to Graph::handleComponentEvent(). Multi-graph routing
+    /// is deferred to a future revision.
+    void processComponentEvents();
 
     /// @brief Manage the process group by starting any pending transitions that were requested
     /// @details If the Graph is in the correct state to start a transition (i.e. `kSuccess` or `kUndefined`)
@@ -280,14 +291,10 @@ class ProcessGroupManager final
 
     /// @brief Initializes the process groups.
     /// @return Returns true if initialization was successful, false otherwise.
-#ifdef USE_NEW_CONFIGURATION
-    inline bool initializeProcessGroups(const Config& config);
-#else
     inline bool initializeProcessGroups();
-#endif
 
     /// @brief Creates process component objects, including the job queue and worker threads.
-    inline void createProcessComponentsObjects();
+    inline void createProcessComponentsObjects(std::size_t total_processes);
 
     /// @brief Initializes the graph nodes.
     inline void initializeGraphNodes();
@@ -299,22 +306,16 @@ class ProcessGroupManager final
     ConfigurationType configuration_;
 
     /// @brief The process interface object associated with the ProcessGroupManager.
-    osal::IProcess process_interface_;
+    osal::ProcessLauncher process_interface_;
 
     /// @brief Shared pointer to the SafeProcessMap object.
     std::shared_ptr<SafeProcessMap> process_map_;
 
     /// @brief Unique pointer to the worker threads handling ProcessInfoNode jobs.
-    std::unique_ptr<WorkerThread<ProcessInfoNode>> worker_threads_;
+    std::unique_ptr<WorkerThread<ComponentTask>> worker_threads_;
 
     /// @brief Shared pointer to the job queue for ProcessInfoNode jobs.
     std::shared_ptr<WorkerQueue> worker_jobs_;
-
-    /// @brief Total number of processes.
-    /// @deprecated there is no reason to store the total number of processes in the class
-    /// @todo Remove this data member, use a local variable and pass it as a parameter to
-    /// the functions that require it
-    uint32_t total_processes_ = 0U;
 
     /// @brief Number of process groups.
     /// @deprecated there is no reason to store the number of process groups in the class
@@ -333,10 +334,15 @@ class ProcessGroupManager final
     /// @brief Process state notifier object used to send data to PHM
     std::unique_ptr<score::lcm::IProcessStateNotifier> process_state_notifier_;
 
-    /// @brief pointer to the configuration for Launch Manager
-    const OsProcess* launch_manager_config_{nullptr};
-
     std::unique_ptr<IAliveMonitorThread> alive_monitor_thread_;
+
+    std::unique_ptr<ProcessMonitor> process_monitor_;
+
+    std::unique_ptr<OsHandler> os_handler_;
+
+    /// @brief Queue of ComponentEvents produced by worker/OS-handler threads and drained by run()
+    /// on the main thread, so all Graph state mutations happen from a single thread.
+    std::unique_ptr<ComponentEventQueue> event_queue_;
 
     std::shared_ptr<score::lcm::IRecoveryClient> recovery_client_{};
 
