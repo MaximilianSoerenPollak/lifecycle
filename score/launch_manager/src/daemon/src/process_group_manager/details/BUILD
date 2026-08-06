@@ -138,30 +138,20 @@ cc_library(
     name = "process_info_node",
     srcs = ["process_info_node.cpp"],
     hdrs = ["process_info_node.hpp"],
-    defines = select({
-        "//config:lm_use_new_configuration": ["USE_NEW_CONFIGURATION"],
-        "//conditions:default": [],
-    }),
     include_prefix = "score/mw/launch_manager/process_group_manager/details",
     strip_include_prefix = "/score/launch_manager/src/daemon/src/process_group_manager/details",
     visibility = ["//score/launch_manager/src/daemon/src/process_group_manager:__pkg__"],
     deps = [
         ":icomponent",
         ":safe_process_map",
+        "//score/launch_manager/src/daemon/src/configuration:configuration_adapter",
         "//score/launch_manager/src/daemon/src/control:control_client_channel",
         "//score/launch_manager/src/daemon/src/osal:ipc_comms",
         "//score/launch_manager/src/daemon/src/osal:semaphore",
         "//score/launch_manager/src/daemon/src/process_group_manager:iprocess",
         "//score/launch_manager/src/daemon/src/process_state_client",
         "@score_baselibs//score/language/futurecpp",
-    ] + select({
-        "//config:lm_use_new_configuration": [
-            "//score/launch_manager/src/daemon/src/configuration:configuration_adapter",
-        ],
-        "//conditions:default": [
-            "//score/launch_manager/src/daemon/src/configuration:configuration_manager",
-        ],
-    }),
+    ],
 )
 
 cc_test(
@@ -204,7 +194,6 @@ cc_library(
         ":transition",
         "//score/launch_manager/src/daemon/src/common:identifier_hash",
         "//score/launch_manager/src/daemon/src/common/concurrency:mpmc_concurrent_queue",
-        "//score/launch_manager/src/daemon/src/configuration:configuration_manager",
         "//score/launch_manager/src/daemon/src/control:control_client_channel",
         "//score/launch_manager/src/daemon/src/osal:semaphore",
         "//score/launch_manager/src/daemon/src/process_group_manager:iprocess",
@@ -214,10 +203,6 @@ cc_library(
 cc_test(
     name = "graph_UT",
     srcs = ["graph_UT.cpp"],
-    target_compatible_with = select({
-        "//config:lm_use_new_configuration": [],
-        "//conditions:default": ["@platforms//:incompatible"],
-    }),
     deps = [
         ":graph",
         ":process_group_manager_impl",
@@ -399,10 +384,6 @@ cc_library(
         "process_group_manager.cpp",
         "process_info_node.cpp",
     ],
-    defines = select({
-        "//config:lm_use_new_configuration": ["USE_NEW_CONFIGURATION"],
-        "//conditions:default": [],
-    }),
     visibility = ["//score/launch_manager/src/daemon/src/process_group_manager:__pkg__"],
     deps = [
         ":component_event_queue",
@@ -415,20 +396,14 @@ cc_library(
         "//score/launch_manager/src/daemon/src/common:log",
         "//score/launch_manager/src/daemon/src/common/concurrency:mpmc_concurrent_queue",
         "//score/launch_manager/src/daemon/src/common/concurrency:workerthread",
+        "//score/launch_manager/src/daemon/src/configuration:configuration_adapter",
         "//score/launch_manager/src/daemon/src/osal:ipc_comms",
         "//score/launch_manager/src/daemon/src/osal:semaphore",
         "//score/launch_manager/src/daemon/src/process_group_manager:process_group_manager_hdrs",
         "//score/launch_manager/src/daemon/src/process_state_client",
         "//score/launch_manager/src/daemon/src/recovery_client",
         "@score_baselibs//score/language/futurecpp",
-    ] + select({
-        "//config:lm_use_new_configuration": [
-            "//score/launch_manager/src/daemon/src/configuration:configuration_adapter",
-        ],
-        "//conditions:default": [
-            "//score/launch_manager/src/daemon/src/configuration:configuration_manager",
-        ],
-    }),
+    ],
 )
 
 cc_library(

@@ -56,11 +56,8 @@ ProcessGroupManager::ProcessGroupManager(
       watchdog_(std::move(watchdog))
 {
 }
-#ifdef USE_NEW_CONFIGURATION
+
 bool ProcessGroupManager::initialize(const Config& config)
-#else
-bool ProcessGroupManager::initialize()
-#endif
 {
     // setup signal handler
     em_cancelled.store(false);
@@ -86,11 +83,7 @@ bool ProcessGroupManager::initialize()
         return false;
     }
 
-#ifdef USE_NEW_CONFIGURATION
     if (!configuration_.initialize(config))
-#else
-    if (!configuration_.initialize())
-#endif
     {
         LM_LOG_ERROR() << "Failed to initialize config";
         return false;
@@ -130,7 +123,6 @@ bool ProcessGroupManager::initialize()
         return false;
     }
 
-#ifdef USE_NEW_CONFIGURATION
     const auto watchdog_config = config.watchdog();
 
     // Watchdog config may not be available if no watchdog is configured
@@ -148,17 +140,13 @@ bool ProcessGroupManager::initialize()
         }
     }
 
-#endif
-
     return true;
 }
 
 void ProcessGroupManager::deinitialize()
 {
     // ucm_polling_thread_.stopPolling();
-#ifdef USE_NEW_CONFIGURATION
     watchdog_->disable();
-#endif
     if (event_queue_)
     {
         event_queue_->stop();
@@ -251,14 +239,15 @@ inline bool ProcessGroupManager::initializeProcessGroups()
             const auto* states = configuration_.getListOfProcessGroupStates(pg_name).value_or(nullptr);
             const uint32_t num_run_targets = states ? static_cast<uint32_t>(states->size()) : 0U;
 
-            process_groups_.push_back(std::make_shared<Graph>(
-                num_processes + num_run_targets,
-                &configuration_,
-                worker_jobs_,
-                &process_interface_,
-                process_map_,
-                process_state_notifier_.get(),
-                this));
+            process_groups_.push_back(
+                std::make_shared<Graph>(
+                    num_processes + num_run_targets,
+                    &configuration_,
+                    worker_jobs_,
+                    &process_interface_,
+                    process_map_,
+                    process_state_notifier_.get(),
+                    this));
         }
     }
     else
@@ -352,9 +341,7 @@ bool ProcessGroupManager::run()
             {
                 LM_LOG_FATAL() << "ComponentEventQueue overflow - one or more events were lost";
                 overflow_logged = true;
-#ifdef USE_NEW_CONFIGURATION
                 watchdog_->fireWatchdogReaction();
-#endif
             }
 
             for (auto pg : process_groups_)
@@ -363,9 +350,7 @@ bool ProcessGroupManager::run()
                 processGroupHandler(*pg);
             }
 
-#ifdef USE_NEW_CONFIGURATION
             watchdog_->serviceWatchdog();
-#endif
         }
 
     allProcessGroupsOff();
