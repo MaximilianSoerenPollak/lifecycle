@@ -44,16 +44,19 @@ static std::map<score::lcm::internal::ControlClientCode, score::mw::lifecycle::E
 namespace score::mw::lifecycle
 {
 
-bool ControlClientImpl::instance_created_{false};
-std::mutex ControlClientImpl::instance_creation_mutex_{};
-
+namespace
+{
 // coverity[exn_spec_violation:FALSE] SetError cannot raise an exception in this instance
-inline score::concurrency::InterruptibleFuture<void> GetErrorFuture(score::mw::lifecycle::ExecErrc errType) noexcept
+score::concurrency::InterruptibleFuture<void> GetErrorFuture(score::mw::lifecycle::ExecErrc errType) noexcept
 {
     score::concurrency::InterruptiblePromise<void> tmp_{};
     tmp_.SetError(errType);
     return tmp_.GetInterruptibleFuture().value();
 }
+}  // namespace
+
+bool ControlClientImpl::instance_created_{false};
+std::mutex ControlClientImpl::instance_creation_mutex_{};
 
 ControlClientImpl::ControlClientImpl(
     std::function<void(const score::lcm::ExecutionErrorEvent&)> undefinedStateCallback) noexcept
