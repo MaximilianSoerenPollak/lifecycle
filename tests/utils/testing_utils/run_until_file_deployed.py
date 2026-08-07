@@ -25,7 +25,6 @@ def run_until_file_deployed(
     file_path: str,
     timeout_s: float = 30.0,
     poll_interval_s: float = 0.5,
-    stop_timeout_s: float = 3.0,
     args=None,
     cwd: str = "/",
 ) -> AsyncProcess:
@@ -36,8 +35,6 @@ def run_until_file_deployed(
     :param file_path: path of the file to wait for on the target.
     :param timeout_s: maximum seconds to wait for the file (default: 30).
     :param poll_interval_s: seconds between file checks (default: 0.5).
-    :param stop_timeout_s: maximum seconds to wait for the process to terminate
-        after SIGTERM (default: 3).
     :param args: optional list of arguments to pass to the binary.
     :param cwd: working directory on the target (default: "/").
     :return: the stopped :class:`AsyncProcess` handle.
@@ -62,21 +59,7 @@ def run_until_file_deployed(
 
         exit_code, _ = target.execute(f"test -f {file_path}")
         if exit_code == 0:
-            # Kill the entire process group so that children (e.g. the actual
-            # daemon binary launched under fakeroot) receive SIGTERM and can
-            # run their cleanup code before exiting.
-            kill_cmd = f"kill -TERM {proc.pid()}"
-            res, _ = target.execute(kill_cmd)
-            assert res == 0, "Couldn't kill lcm with SIGTERM"
-            try:
-                # wait() raises RuntimeError if the process is still running after
-                # stop_timeout_s.
-                exit_code = proc.wait(timeout_s=stop_timeout_s)
-            except RuntimeError as exc:
-                proc.stop()  # escalate to SIGKILL so we don't leak the process
-                assert False, (
-                    f"Process '{binary_path}' still running {stop_timeout_s}s after SIGTERM: {exc}"
-                )
+            exit_code = proc.stop()
             assert exit_code == 0, (
                 f"LCM did not exit cleanly, it died with code {exit_code}"
             )
