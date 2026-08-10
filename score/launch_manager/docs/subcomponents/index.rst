@@ -12,31 +12,10 @@
    # SPDX-License-Identifier: Apache-2.0
    # *******************************************************************************
 
-Launch Manager
-##############
+Sub-Component documentation
+---------------------------
+
+.. toctree will be filled by docs_bundle via bazel
 
 .. toctree::
-   :titlesonly:
-
-   user_guide/index.rst
-   product_documentation/known_limitations.rst
-
-.. toctree::
-   :hidden:
-
-   requirements/index.rst
-   requirements/chklst_req_inspection
-   architecture/index.rst
-   architecture/chklst_arc_inspection
-   detailed_design/index.rst
-   detailed_design/chklst_impl_inspection
-   safety_analysis/fmea.rst
-   safety_analysis/dfa.rst
-   safety_analysis/aou_requirements.rst
-
-Subcomponents
-=============
-.. toctree::
-   :titlesonly:
-
-   subcomponents/index
+   :maxdepth: 1
