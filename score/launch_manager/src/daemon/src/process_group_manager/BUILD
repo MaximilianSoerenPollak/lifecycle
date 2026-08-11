@@ -82,9 +82,17 @@ cc_library(
         "//score/launch_manager/src/daemon/src/process_group_manager/details:process_launcher",
         "//score/launch_manager/src/daemon/src/process_group_manager/details:process_monitor",
         "//score/launch_manager/src/daemon/src/process_group_manager/details:safe_process_map",
-        "//score/launch_manager/src/daemon/src/process_state_client:iprocess_state_notifier",
         "//score/launch_manager/src/daemon/src/recovery_client",
+        "//score/launch_manager/src/daemon/src/supervision_control_client:isupervision_control_notifier",
         "//score/launch_manager/src/daemon/src/watchdog:i_watchdog_if",
         "@score_baselibs//score/language/futurecpp",
     ],
+)
+
+cc_library(
+    name = "process_state",
+    hdrs = ["process_state.hpp"],
+    include_prefix = "score/mw/launch_manager/process_group_manager",
+    strip_include_prefix = "/score/launch_manager/src/daemon/src/process_group_manager",
+    visibility = ["//score:__subpackages__"],
 )

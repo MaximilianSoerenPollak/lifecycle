@@ -17,6 +17,7 @@
 #include "score/mw/launch_manager/configuration/configuration_adapter.hpp"
 #include "score/mw/launch_manager/process_group_manager/details/graph.hpp"
 #include "score/mw/launch_manager/process_group_manager/mock_iprocess.hpp"
+#include "score/mw/launch_manager/supervision_control_client/mock_supervision_event_publisher.hpp"
 
 namespace score::lcm::internal
 {
@@ -30,13 +31,6 @@ class MockProcessMap : public SafeProcessMapInserter
 {
   public:
     MOCK_METHOD(SafeProcessMapReturnType, insertIfNotTerminated, (osal::ProcessID key, IComponent* object), (override));
-};
-
-class MockProcessStateNotifier : public IProcessStateNotifier
-{
-  public:
-    MOCK_METHOD(std::unique_ptr<score::lcm::IProcessStateReceiver>, constructReceiver, (), (override));
-    MOCK_METHOD(bool, queuePosixProcess, (const score::lcm::PosixProcess& f_posixProcess), (override, noexcept));
 };
 
 class MockTransitionResultPublisher : public ITransitionResultPublisher
@@ -53,7 +47,8 @@ class GraphTest : public ::testing::Test
         RecordProperty("TestType", "interface-test");
         RecordProperty("DerivationTechnique", "equivalence-classes");
 
-        ON_CALL(mock_process_state_notifier_, queuePosixProcess).WillByDefault(Return(true));
+        ON_CALL(mock_supervision_event_publisher_, reportActivation).WillByDefault(Return(true));
+        ON_CALL(mock_supervision_event_publisher_, reportDeactivation).WillByDefault(Return(true));
 
         auto procs = SetConfig();
 
@@ -185,7 +180,7 @@ class GraphTest : public ::testing::Test
     std::shared_ptr<WorkerQueue> job_queue_ = std::make_shared<WorkerQueue>();
     StrictMock<osal::MockIProcess> process_interface_{};
     std::shared_ptr<MockProcessMap> mock_process_map = std::make_shared<MockProcessMap>();
-    NiceMock<MockProcessStateNotifier> mock_process_state_notifier_{};
+    NiceMock<MockSupervisionEventPublisher> mock_supervision_event_publisher_{};
     MockTransitionResultPublisher mock_transition_result_publisher_{};
     Graph graph_{
         10U,
@@ -193,7 +188,7 @@ class GraphTest : public ::testing::Test
         job_queue_,
         &process_interface_,
         mock_process_map,
-        &mock_process_state_notifier_,
+        mock_supervision_event_publisher_,
         &mock_transition_result_publisher_};
 
     static constexpr std::string_view pg_string{"MainPG"};
