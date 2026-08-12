@@ -18,8 +18,7 @@
 #include <optional>
 
 #include "score/mw/launch_manager/alive_monitor/details/ifappl/Checkpoint.hpp"
-#include "score/mw/launch_manager/alive_monitor/details/ifexm/ProcessCfg.hpp"
-#include "score/mw/launch_manager/alive_monitor/details/ifexm/ProcessState.hpp"
+#include "score/mw/launch_manager/alive_monitor/details/ifexm/ObservableEvent.hpp"
 #include "score/mw/launch_manager/alive_monitor/details/supervision/Alive.hpp"
 #include "score/mw/launch_manager/alive_monitor/details/supervision/SupervisionCfg.hpp"
 #include "score/mw/launch_manager/common/identifier_hash.hpp"
@@ -51,9 +50,8 @@ class MockRecoveryClient : public score::lcm::IRecoveryClient
 /// Owns all supporting objects so they outlive the Alive.
 struct AliveFixture
 {
-    static constexpr char kProcessName[] = "test_proc";
+    inline static const score::lcm::IdentifierHash kProcessId{"42U"};
     static constexpr char kCheckpointName[] = "test_cp";
-    static constexpr score::lcm::saf::common::ProcessId kProcessId = 42U;
 
     struct Builder
     {
@@ -93,13 +91,12 @@ struct AliveFixture
 
     std::shared_ptr<MockRecoveryClient> mockClient = std::make_shared<MockRecoveryClient>();
 
-    score::lcm::saf::ifexm::ProcessState processState;
+    score::lcm::saf::ifexm::ObservableEvent processState;
     score::lcm::saf::ifappl::Checkpoint checkpoint;
 
     std::unique_ptr<score::lcm::saf::supervision::Alive> alive;
 
-    explicit AliveFixture(const Builder& bld)
-        : processState(makeProcessCfg()), checkpoint(kCheckpointName, 1U, &processState)
+    explicit AliveFixture(const Builder& bld) : processState(kProcessId), checkpoint(kCheckpointName, 1U, &processState)
     {
         score::lcm::saf::supervision::AliveSupervisionCfg cfg{checkpoint};
         cfg.cfgName_p = "test_alive";
@@ -117,19 +114,19 @@ struct AliveFixture
         processState.attachObserver(*alive);
     }
 
-    /// Simulate supervision activation (process reached running state).
-    void activateProcess(score::lcm::saf::timers::NanoSecondType timestamp)
+    /// Send an activation event and notify observers.
+    void activateProcess(long ts)
     {
-        processState.setTimestamp(timestamp);
-        processState.setEventType(score::lcm::SupervisionEventType::kActivation);
+        processState.event.systemClockTimestamp.tv_nsec = ts;
+        processState.event.eventType = score::lcm::SupervisionEventType::kActivation;
         processState.pushData();
     }
 
-    /// Simulate supervision deactivation (process terminating).
-    void deactivateProcess(score::lcm::saf::timers::NanoSecondType timestamp)
+    /// Send a deactivation event and notify observers.
+    void deactivateProcess(long ts)
     {
-        processState.setTimestamp(timestamp);
-        processState.setEventType(score::lcm::SupervisionEventType::kDeactivation);
+        processState.event.systemClockTimestamp.tv_nsec = ts;
+        processState.event.eventType = score::lcm::SupervisionEventType::kDeactivation;
         processState.pushData();
     }
 
@@ -137,15 +134,6 @@ struct AliveFixture
     void reportHeartbeat(score::lcm::saf::timers::NanoSecondType timestamp)
     {
         checkpoint.pushData(timestamp);
-    }
-
-  private:
-    static score::lcm::saf::ifexm::ProcessCfg makeProcessCfg()
-    {
-        score::lcm::saf::ifexm::ProcessCfg cfg{};
-        cfg.processShortName = kProcessName;
-        cfg.processId = kProcessId;
-        return cfg;
     }
 };
 

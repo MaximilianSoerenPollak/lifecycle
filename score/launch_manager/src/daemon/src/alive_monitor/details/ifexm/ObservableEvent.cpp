@@ -10,10 +10,8 @@
  *
  * SPDX-License-Identifier: Apache-2.0
  ********************************************************************************/
-#ifndef TYPES_HPP_INCLUDED
-#define TYPES_HPP_INCLUDED
 
-#include <cstdint>
+#include "score/mw/launch_manager/alive_monitor/details/ifexm/ObservableEvent.hpp"
 
 namespace score
 {
@@ -21,14 +19,20 @@ namespace lcm
 {
 namespace saf
 {
-namespace common
+namespace ifexm
 {
 
-using ProcessId = std::size_t;
+ObservableEvent::ObservableEvent(const IdentifierHash& process_id) noexcept(false) : Observable<ObservableEvent>()
+{
+    event.id = process_id;
+}
 
-}  // namespace common
+void ObservableEvent::pushData(void) noexcept
+{
+    pushResultToObservers();
+}
+
+}  // namespace ifexm
 }  // namespace saf
 }  // namespace lcm
 }  // namespace score
-
-#endif

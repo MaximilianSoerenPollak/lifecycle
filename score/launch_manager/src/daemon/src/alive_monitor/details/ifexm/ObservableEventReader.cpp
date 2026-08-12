@@ -11,7 +11,7 @@
  * SPDX-License-Identifier: Apache-2.0
  ********************************************************************************/
 
-#include "score/mw/launch_manager/alive_monitor/details/ifexm/ProcessStateReader.hpp"
+#include "score/mw/launch_manager/alive_monitor/details/ifexm/ObservableEventReader.hpp"
 #include "score/launch_manager/src/daemon/src/common/log.hpp"
 #include "score/mw/launch_manager/alive_monitor/details/timers/TimeConversion.hpp"
 
@@ -24,14 +24,14 @@ namespace saf
 namespace ifexm
 {
 
-ProcessStateReader::ProcessStateReader(std::unique_ptr<LcmSupervisionControlReceiver> f_process_state_receiver)
-    : processStateReceiverHM(std::move(f_process_state_receiver))
+ObservableEventReader::ObservableEventReader(std::unique_ptr<LcmSupervisionControlReceiver> f_observable_event_receiver)
+    : processStateReceiverHM(std::move(f_observable_event_receiver))
 {
 }
 
-bool ProcessStateReader::registerProcessState(
-    ProcessState& f_processState_r,
-    const common::ProcessId f_processId) noexcept(false)
+bool ObservableEventReader::registerObservableEvent(
+    ObservableEvent& f_processState_r,
+    const IdentifierHash f_processId) noexcept(false)
 {
     bool flagSuccess{false};
 
@@ -41,15 +41,15 @@ bool ProcessStateReader::registerProcessState(
 
     if (!flagSuccess)
     {
-        LM_LOG_ERROR() << "Process State Reader did not register" << f_processState_r.getConfigName();
+        LM_LOG_ERROR() << "Observable Event Reader did not register" << f_processState_r.event.id;
     }
 
     return flagSuccess;
 }
 
-void ProcessStateReader::deregisterProcessState(const common::ProcessId f_processId) noexcept
+void ObservableEventReader::deregisterObservableEvent(const IdentifierHash f_processId) noexcept
 {
-    std::map<common::ProcessId, ProcessState*>::iterator processMapIterator{processStateMap.find(f_processId)};
+    std::map<IdentifierHash, ObservableEvent*>::iterator processMapIterator{processStateMap.find(f_processId)};
     // delete the pair only if process id already exists
     if (processMapIterator != processStateMap.end())
     {
@@ -57,9 +57,9 @@ void ProcessStateReader::deregisterProcessState(const common::ProcessId f_proces
     }
 }
 
-bool ProcessStateReader::distributeChanges(const timers::NanoSecondType f_syncTimestamp) noexcept
+bool ObservableEventReader::distributeChanges(const timers::NanoSecondType f_syncTimestamp) noexcept
 {
-    // If push update is pending from previous cycle, push data for last change process state.
+    // If push update is pending from previous cycle, push data for last change observable event.
     if (isPushPending)
     {
         lastChangedProcess_p->pushData();
@@ -90,7 +90,7 @@ bool ProcessStateReader::distributeChanges(const timers::NanoSecondType f_syncTi
         }
         else
         {
-            LM_LOG_DEBUG() << "Process State Reader failed with error:" << resultEvent.error().Message();
+            LM_LOG_DEBUG() << "Observable Event Reader failed with error:" << resultEvent.error().Message();
             flagContinue = false;
             flagSuccess = false;
         }
@@ -99,20 +99,20 @@ bool ProcessStateReader::distributeChanges(const timers::NanoSecondType f_syncTi
     return flagSuccess;
 }
 
-bool ProcessStateReader::pushUpdateTill(
+bool ObservableEventReader::pushUpdateTill(
     const LcmSupervisionEvent& f_event,
     const timers::NanoSecondType f_syncTimestamp) noexcept
 {
     bool isSyncTimestampReached{false};
-    const common::ProcessId processId{f_event.id.data()};
 
-    std::map<common::ProcessId, ProcessState*>::iterator processMapIterator{processStateMap.find(processId)};
+    std::map<IdentifierHash, ObservableEvent*>::iterator processMapIterator{processStateMap.find(f_event.id)};
     if (processMapIterator != processStateMap.end())
     {
-        processMapIterator->second->setEventType(f_event.eventType);
+        processMapIterator->second->event.eventType = f_event.eventType;
+        processMapIterator->second->event.systemClockTimestamp = f_event.systemClockTimestamp;
+
         timers::NanoSecondType changedProcessTimestamp{
             timers::TimeConversion::convertToNanoSec(f_event.systemClockTimestamp)};
-        processMapIterator->second->setTimestamp(changedProcessTimestamp);
 
         // If event occurred before synchronization timestamp, push data for current cycle.
         if (changedProcessTimestamp <= f_syncTimestamp)
