@@ -20,8 +20,8 @@
 
 using namespace testing;
 
-using score::lcm::saf::timers::NanoSecondType;
-using score::lcm::saf::timers::TimeConversion;
+using score::mw::lifecycle::internal::saf::timers::NanoSecondType;
+using score::mw::lifecycle::internal::saf::timers::TimeConversion;
 
 namespace
 {

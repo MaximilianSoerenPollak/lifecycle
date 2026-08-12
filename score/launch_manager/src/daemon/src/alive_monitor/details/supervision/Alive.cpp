@@ -21,13 +21,7 @@
 #include "score/mw/launch_manager/alive_monitor/details/timers/TimeConversion.hpp"
 #include "score/mw/launch_manager/alive_monitor/details/timers/Timers_OsClock.hpp"
 
-namespace score
-{
-namespace lcm
-{
-namespace saf
-{
-namespace supervision
+namespace score::mw::lifecycle::internal::saf::supervision
 {
 
 Alive::Alive(const AliveSupervisionCfg& f_aliveCfg_r)
@@ -54,7 +48,7 @@ Alive::Alive(const AliveSupervisionCfg& f_aliveCfg_r)
 }
 
 // coverity[exn_spec_violation:FALSE] std::length_error is not thrown from push() which uses fixed-size-vector
-void Alive::updateData(const score::lcm::saf::ifappl::Checkpoint& f_observable_r) noexcept(true)
+void Alive::updateData(const score::mw::lifecycle::internal::saf::ifappl::Checkpoint& f_observable_r) noexcept(true)
 {
     timers::NanoSecondType timestamp{f_observable_r.getTimestamp()};
 
@@ -268,11 +262,11 @@ Alive::EUpdateEventType Alive::getAliveEventType(
     if (std::holds_alternative<SupervisionEventSnapshot>(f_updateEvent))
     {
         const auto& snapshot = std::get<SupervisionEventSnapshot>(f_updateEvent);
-        if (snapshot.eventType == score::lcm::SupervisionEventType::kActivation)
+        if (snapshot.eventType == score::mw::lifecycle::SupervisionEventType::kActivation)
         {
             return EUpdateEventType::kActivation;
         }
-        if (snapshot.eventType == score::lcm::SupervisionEventType::kDeactivation)
+        if (snapshot.eventType == score::mw::lifecycle::SupervisionEventType::kDeactivation)
         {
             return EUpdateEventType::kDeactivation;
         }
@@ -600,7 +594,4 @@ timers::NanoSecondType Alive::getTimestampOfUpdateEvent(const TimeSortedUpdateEv
     return timestamp;
 }
 
-}  // namespace supervision
-}  // namespace saf
-}  // namespace lcm
-}  // namespace score
+}  // namespace score::mw::lifecycle::internal::saf::supervision

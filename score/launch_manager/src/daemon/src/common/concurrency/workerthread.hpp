@@ -22,10 +22,8 @@
 #include <thread>
 #include <vector>
 
-namespace score::lcm::internal
+namespace score::mw::lifecycle::internal
 {
-
-using namespace score::mw::lifecycle::internal;
 
 /// @brief Templated worker thread pool for executing jobs from a queue.
 /// This class manages a pool of worker threads that continuously retrieve and execute jobs
@@ -117,6 +115,6 @@ class WorkerThread final
     std::vector<std::unique_ptr<std::thread>> worker_threads_{};
 };
 
-}  // namespace score::lcm::internal
+}  // namespace score::mw::lifecycle::internal
 
 #endif  // WORKER_THREAD_HPP_INCLUDED

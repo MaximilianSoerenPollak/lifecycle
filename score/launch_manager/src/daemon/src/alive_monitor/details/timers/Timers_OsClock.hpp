@@ -18,7 +18,7 @@
 
 namespace score
 {
-namespace lcm
+namespace mw::lifecycle::internal
 {
 namespace saf
 {
@@ -55,7 +55,7 @@ class OsClock
 
 }  // namespace timers
 }  // namespace saf
-}  // namespace lcm
+}  // namespace mw::lifecycle::internal
 }  // namespace score
 
 #endif

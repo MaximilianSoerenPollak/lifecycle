@@ -18,13 +18,7 @@
 #include "score/launch_manager/src/daemon/src/common/log.hpp"
 #include "score/mw/launch_manager/alive_monitor/details/ifexm/ObservableEvent.hpp"
 
-namespace score
-{
-namespace lcm
-{
-namespace saf
-{
-namespace ifappl
+namespace score::mw::lifecycle::internal::saf::ifappl
 {
 
 MonitorIfDaemon::MonitorIfDaemon(CheckpointIpcServer& f_ipcServer_r, const char* f_interfaceName_p)
@@ -46,7 +40,7 @@ void MonitorIfDaemon::updateData(const ifexm::ObservableEvent& f_observable_r) n
 {
     switch (f_observable_r.event.eventType)
     {
-        case score::lcm::SupervisionEventType::kActivation:
+        case score::mw::lifecycle::SupervisionEventType::kActivation:
             if (isDeactivateRequest)
             {
                 isProcessRestarted = true;
@@ -54,7 +48,7 @@ void MonitorIfDaemon::updateData(const ifexm::ObservableEvent& f_observable_r) n
             isActivateRequest = true;
             isDeactivateRequest = false;
             break;
-        case score::lcm::SupervisionEventType::kDeactivation:
+        case score::mw::lifecycle::SupervisionEventType::kDeactivation:
             isDeactivateRequest = true;
             break;
     }
@@ -201,7 +195,4 @@ void MonitorIfDaemon::pushOverflowInfoToCheckpointObservers(void) const
     }
 }
 
-}  // namespace ifappl
-}  // namespace saf
-}  // namespace lcm
-}  // namespace score
+}  // namespace score::mw::lifecycle::internal::saf::ifappl

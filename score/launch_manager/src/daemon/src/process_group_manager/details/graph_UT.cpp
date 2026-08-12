@@ -19,12 +19,11 @@
 #include "score/mw/launch_manager/process_group_manager/mock_iprocess.hpp"
 #include "score/mw/launch_manager/supervision_control_client/mock_supervision_event_publisher.hpp"
 
-namespace score::lcm::internal
+namespace score::mw::lifecycle::internal
 {
 
 using namespace testing;
-using namespace score::mw::lifecycle;
-using namespace score::mw::launch_manager::configuration;
+using namespace configuration;
 using namespace std::chrono_literals;
 
 class MockProcessMap : public SafeProcessMapInserter
@@ -608,4 +607,4 @@ TEST_F(GraphUtilitiesTest, gettersSetters)
     EXPECT_LE(graph_time, after_time);
 }
 
-}  // namespace score::lcm::internal
+}  // namespace score::mw::lifecycle::internal

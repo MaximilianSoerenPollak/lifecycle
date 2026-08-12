@@ -19,8 +19,6 @@
 namespace score::mw::lifecycle::internal
 {
 
-using namespace score::lcm;
-
 class ComponentEventQueueTest : public ::testing::Test
 {
   protected:

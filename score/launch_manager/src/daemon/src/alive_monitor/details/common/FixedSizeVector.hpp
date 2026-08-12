@@ -18,7 +18,7 @@
 
 namespace score
 {
-namespace lcm
+namespace mw::lifecycle::internal
 {
 namespace saf
 {
@@ -239,7 +239,7 @@ class FixedSizeVector
 };
 }  // namespace common
 }  // namespace saf
-}  // namespace lcm
+}  // namespace mw::lifecycle::internal
 }  // namespace score
 
 #endif

@@ -23,12 +23,12 @@
 #include <cstdint>
 #include <vector>
 
-namespace score::mw::launch_manager::configuration
+namespace score::mw::lifecycle::internal::configuration
 {
 namespace
 {
 
-namespace fb = score::mw::launch_manager::configuration::fb;
+namespace fb = score::mw::lifecycle::internal::configuration::fb;
 
 using ::testing::Eq;
 using ::testing::IsFalse;
@@ -695,4 +695,4 @@ TEST_F(FlatbufferConfigLoaderTest, MissingSchemaVersionReturnsInvalidFormat)
 }
 
 }  // namespace
-}  // namespace score::mw::launch_manager::configuration
+}  // namespace score::mw::lifecycle::internal::configuration

@@ -21,7 +21,7 @@
 
 namespace score
 {
-namespace lcm
+namespace mw::lifecycle::internal
 {
 namespace saf
 {
@@ -61,7 +61,7 @@ class StaticConfig
 
 }  // namespace factory
 }  // namespace saf
-}  // namespace lcm
+}  // namespace mw::lifecycle::internal
 }  // namespace score
 
 #endif

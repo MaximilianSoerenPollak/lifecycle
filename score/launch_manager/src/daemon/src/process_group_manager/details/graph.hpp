@@ -42,15 +42,13 @@
 namespace score
 {
 
-namespace lcm
+namespace mw::lifecycle
 {
 
 namespace internal
 {
 
-using namespace score::mw::lifecycle;
-
-using Config = score::mw::launch_manager::configuration::Config;
+using Config = score::mw::lifecycle::internal::configuration::Config;
 
 using WorkerQueue =
     MPMCConcurrentQueue<std::optional<ComponentTask>, static_cast<std::size_t>(ProcessLimits::kMaxProcesses)>;
@@ -428,7 +426,7 @@ class Graph final
 
 }  // namespace internal
 
-}  // namespace lcm
+}  // namespace mw::lifecycle
 
 }  // namespace score
 

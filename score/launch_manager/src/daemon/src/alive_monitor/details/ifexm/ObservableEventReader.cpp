@@ -15,13 +15,7 @@
 #include "score/launch_manager/src/daemon/src/common/log.hpp"
 #include "score/mw/launch_manager/alive_monitor/details/timers/TimeConversion.hpp"
 
-namespace score
-{
-namespace lcm
-{
-namespace saf
-{
-namespace ifexm
+namespace score::mw::lifecycle::internal::saf::ifexm
 {
 
 ObservableEventReader::ObservableEventReader(std::unique_ptr<LcmSupervisionControlReceiver> f_observable_event_receiver)
@@ -129,7 +123,4 @@ bool ObservableEventReader::pushUpdateTill(
     return isSyncTimestampReached;
 }
 
-}  // namespace ifexm
-}  // namespace saf
-}  // namespace lcm
-}  // namespace score
+}  // namespace score::mw::lifecycle::internal::saf::ifexm
