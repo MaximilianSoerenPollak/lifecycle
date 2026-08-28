@@ -12,7 +12,7 @@
    # SPDX-License-Identifier: Apache-2.0
    # *******************************************************************************
 
-.. mod:: Module Name
+.. mod:: Lifecycle Module
    :id: mod__lifecycle
    :version: 1
    :security: YES
